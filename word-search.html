@@ -1,0 +1,174 @@
+<script>
+    function createGrid(size) {
+        return Array(size).fill().map(() => Array(size).fill('_'));
+    }
+
+    function isAdjacent(grid, row, col) {
+        const size = grid.length;
+        for (let i = Math.max(0, row - 1); i < Math.min(size, row + 2); i++) {
+            for (let j = Math.max(0, col - 1); j < Math.min(size, col + 2); j++) {
+                if (grid[i][j] !== '_') {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function canPlaceWord(grid, word, row, col, direction) {
+        const size = grid.length;
+        const wordLen = word.length;
+
+        if (direction === 'horizontal') {
+            if (col + wordLen > size) return false;
+            for (let i = 0; i < wordLen; i++) {
+                if (grid[row][col + i] !== '_' || isAdjacent(grid, row, col + i)) {
+                    return false;
+                }
+            }
+        } else if (direction === 'vertical') {
+            if (row + wordLen > size) return false;
+            for (let i = 0; i < wordLen; i++) {
+                if (grid[row + i][col] !== '_' || isAdjacent(grid, row + i, col)) {
+                    return false;
+                }
+            }
+        } else if (direction === 'diagonal') {
+            if (row + wordLen > size || col + wordLen > size) return false;
+            for (let i = 0; i < wordLen; i++) {
+                if (grid[row + i][col + i] !== '_' || isAdjacent(grid, row + i, col + i)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    function placeWord(grid, word) {
+        const size = grid.length;
+        let attempts = 0;
+        const maxAttempts = 100;
+
+        while (attempts < maxAttempts) {
+            const row = Math.floor(Math.random() * size);
+            const col = Math.floor(Math.random() * size);
+            const direction = ['horizontal', 'vertical', 'diagonal'][Math.floor(Math.random() * 3)];
+
+            if (canPlaceWord(grid, word, row, col, direction)) {
+                if (direction === 'horizontal') {
+                    for (let i = 0; i < word.length; i++) {
+                        grid[row][col + i] = word[i];
+                    }
+                } else if (direction === 'vertical') {
+                    for (let i = 0; i < word.length; i++) {
+                        grid[row + i][col] = word[i];
+                    }
+                } else if (direction === 'diagonal') {
+                    for (let i = 0; i < word.length; i++) {
+                        grid[row + i][col + i] = word[i];
+                    }
+                }
+                return true;
+            }
+
+            attempts++;
+        }
+
+        return false;
+    }
+
+    function generateWordSearch(words, size, repetitions) {
+        const grid = createGrid(size);
+
+        words.forEach(word => {
+            for (let i = 0; i < repetitions; i++) {
+                if (!placeWord(grid, word.toUpperCase())) {
+                    console.warn(`Warning: Couldn't place '${word}' ${repetitions} times`);
+                    break;
+                }
+            }
+        });
+
+        return grid;
+    }
+
+    function createInteractiveSVG(grid) {
+        const size = grid.length;
+        const cellSize = 30;
+        const svgSize = size * cellSize;
+
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("width", "100%");
+        svg.setAttribute("height", "100%");
+        svg.setAttribute("viewBox", `0 0 ${svgSize} ${svgSize}`);
+        svg.style.position = "fixed";
+        svg.style.top = "0";
+        svg.style.left = "0";
+        svg.style.zIndex = "-1";
+
+        const texts = [];
+
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", j * cellSize + cellSize / 2);
+                text.setAttribute("y", i * cellSize + cellSize / 2);
+                text.setAttribute("dominant-baseline", "middle");
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("font-size", "20");
+                text.textContent = grid[i][j];
+                svg.appendChild(text);
+
+                if (grid[i][j] === '_') {
+                    texts.push({
+                        element: text,
+                        x: j * cellSize + cellSize / 2,
+                        y: i * cellSize + cellSize / 2
+                    });
+                }
+            }
+        }
+
+        function updateDirections(mouseX, mouseY) {
+            texts.forEach(text => {
+                const dx = mouseX - text.x;
+                const dy = mouseY - text.y;
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                let symbol;
+                if (angle > -22.5 && angle <= 22.5) symbol = '-';
+                else if (angle > 22.5 && angle <= 67.5) symbol = '\\';
+                else if (angle > 67.5 && angle <= 112.5) symbol = '|';
+                else if (angle > 112.5 && angle <= 157.5) symbol = '/';
+                else if (angle > 157.5 || angle <= -157.5) symbol = '-';
+                else if (angle > -157.5 && angle <= -112.5) symbol = '\\';
+                else if (angle > -112.5 && angle <= -67.5) symbol = '|';
+                else symbol = '/';
+
+                text.element.textContent = symbol;
+            });
+        }
+
+        svg.addEventListener('mousemove', (event) => {
+            const rect = svg.getBoundingClientRect();
+            const mouseX = (event.clientX - rect.left) * (svgSize / rect.width);
+            const mouseY = (event.clientY - rect.top) * (svgSize / rect.height);
+            updateDirections(mouseX, mouseY);
+        });
+
+        return svg;
+    }
+
+    const words = ['ELIAS', 'OXECHO', 'ECHO'];
+    const gridSize = 20;
+    const repetitions = 7;
+
+    const wordSearch = generateWordSearch(words, gridSize, repetitions);
+    const svg = createInteractiveSVG(wordSearch);
+
+    document.body.appendChild(svg);
+
+    document.body.style.margin = '0';
+    document.body.style.overflow = 'hidden'; 
+</script>
